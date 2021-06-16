@@ -13,6 +13,7 @@
 
 class LP_ObjectImpl;
 class QLabel;
+class QComboBox;
 class QOpenGLShaderProgram;
 
 #include "LP_Plugin_HumanFeature_global.h"
@@ -26,28 +27,35 @@ public:
     virtual ~LP_HumanFeature();
 
     // QObject interface
-public:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     // LP_Functional interface
-public:
     QWidget *DockUi() override;
     bool Run() override;
+
+    // LP_ActionPlugin interface
+    QString MenuName() override;
+    QAction *Trigger() override;
+
+    /**
+     * @brief The FeaturePoint struct
+     * Barycentric representattion of a point on a mesh
+     */
+    struct FeaturePoint {
+        std::string mName;
+        std::tuple<int, int, int, double, double> mParams; //Vector of parametric points depends on topology
+    };
 
 public slots:
     void FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QOpenGLFramebufferObject *fbo, const LP_RendererCam &cam, const QVariant &options) override;
     void PainterDraw(QWidget *glW) override;
-
-    // LP_ActionPlugin interface
-public:
-    QString MenuName() override;
-    QAction *Trigger() override;
 
 protected:
     void initializeGL();
 
 private:
     QOpenGLShaderProgram *mProgram = nullptr, *mProgramFeatures = nullptr;
+    QComboBox *mCB_FeatureType = nullptr;
     std::shared_ptr<QWidget> mWidget;
     std::weak_ptr<LP_ObjectImpl> mObject;
     QLabel *mLabel = nullptr;

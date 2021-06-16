@@ -208,7 +208,8 @@ SOURCES += \
     extern/opennurbs/zlib/trees.c \
     extern/opennurbs/zlib/uncompr.c \
     extern/opennurbs/zlib/zutil.c \
-    lp_humanfeature.cpp
+    lp_humanfeature.cpp \
+    lp_pca_human.cpp
 
 HEADERS += \
     LP_Plugin_HumanFeature_global.h \
@@ -386,7 +387,8 @@ HEADERS += \
     extern/opennurbs/zlib/zconf.h \
     extern/opennurbs/zlib/zlib.h \
     extern/opennurbs/zlib/zutil.h \
-    lp_humanfeature.h
+    lp_humanfeature.h \
+    lp_pca_human.h
 
 # Default rules for deployment.
 target.path = $$OUT_PWD/../App/plugins/$$TARGET

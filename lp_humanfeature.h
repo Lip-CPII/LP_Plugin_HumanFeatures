@@ -59,6 +59,7 @@ private:
     std::shared_ptr<QWidget> mWidget;
     std::weak_ptr<LP_ObjectImpl> mObject;
     QLabel *mLabel = nullptr;
+    bool mShowLabels = true;
     bool mInitialized = false;
 
     struct member;

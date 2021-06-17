@@ -18,7 +18,7 @@
 
 #include <QInputDialog>
 #include <QStandardItemModel>
-#include <QListView>
+#include <QTreeView>
 #include <QGroupBox>
 #include <QPainter>
 #include <QComboBox>
@@ -38,6 +38,7 @@
 #include <QtConcurrent/QtConcurrent>
 
 struct LP_HumanFeature::member {
+    RTCRayHit rayCast(const QVector3D &rayOrg, const QVector3D &rayDir);
 
     bool convert2ON_Mesh(LP_OpenMesh opMesh);
 
@@ -112,6 +113,14 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
             mLabel->setText("Select A Mesh");
 
             emit glUpdateRequest();
+        }else if (e->button() == Qt::MiddleButton ){
+            mShowLabels = true;
+            emit glUpdateRequest();
+        }
+    } else if ( QEvent::MouseMove == event->type()) {
+        auto e = static_cast<QMouseEvent*>(event);
+        if ( e->buttons() == Qt::MiddleButton ){
+            mShowLabels = false;
         }
     } else if ( QEvent::KeyPress == event->type()){
         auto e = static_cast<QKeyEvent*>(event);
@@ -154,7 +163,8 @@ QWidget *LP_HumanFeature::DockUi()
 
     auto pFPGroupBox = new QGroupBox("Feature Points");
     auto fpLayout = new QVBoxLayout;
-    auto listview = new QListView;
+    auto listview = new QTreeView;
+
 
     fpLayout->addWidget(listview);
     pFPGroupBox->setLayout(fpLayout);
@@ -183,6 +193,7 @@ QWidget *LP_HumanFeature::DockUi()
         auto filename = QFileDialog::getOpenFileName(nullptr, "Import", QDir::currentPath(),
                                                      "Json (*.json)");
         mMember->importFeatures(filename);
+        mMember->updateFPsList();
         emit glUpdateRequest();
 
     });
@@ -192,21 +203,40 @@ QWidget *LP_HumanFeature::DockUi()
     });
 
     mMember->updateFPsList = [this,listview](){
-        auto model = new QStandardItemModel;
+        auto model = new QStandardItemModel();
+        model->setHorizontalHeaderLabels({"Name","Indices","UV"});
 
         for ( auto &p : mMember->featurePoints ){
-            QString data  = QString("%1\n  (i, j, k) = (%2, %3, %4)\n  (u, v) = (%5, %6)")
-                    .arg(p.mName.data())
-                    .arg(std::get<0>(p.mParams))
-                    .arg(std::get<1>(p.mParams))
-                    .arg(std::get<2>(p.mParams))
-                    .arg(std::get<3>(p.mParams))
-                    .arg(std::get<4>(p.mParams));
-            model->appendRow(new QStandardItem(data));
+
+            auto iName = new QStandardItem(p.mName.c_str());
+            iName->setData(QVariant::fromValue<void*>(&p)); //Store pointer to FeaturePoint for eitiing from  the treeview
+            auto iIndices = new QStandardItem(QString("%1,%2,%3")
+                                            .arg(std::get<0>(p.mParams))
+                                            .arg(std::get<1>(p.mParams))
+                                            .arg(std::get<2>(p.mParams)));
+            iIndices->setData(QVariant::fromValue<void*>(&p));
+            auto iUV = new QStandardItem(QString("%1,%2")
+                                            .arg(std::get<3>(p.mParams))
+                                            .arg(std::get<4>(p.mParams)));
+
+            iUV->setData(QVariant::fromValue<void*>(&p));
+            model->appendRow({iName,iIndices,iUV});
         }
         delete listview->model();
         listview->reset();
         listview->setModel(model);
+        connect(model, &QStandardItemModel::dataChanged,
+                [model,this](const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles){
+            Q_UNUSED(bottomRight)
+            Q_UNUSED(roles)
+            auto item = model->itemFromIndex(topLeft);
+            if ( 0 != item->column()){
+                return;
+            }
+            auto pF = static_cast<FeaturePoint*>(item->data().value<void*>());
+            pF->mName = item->text().toStdString();
+            emit glUpdateRequest();
+        });
     };
 
     return widget;
@@ -269,9 +299,10 @@ void LP_HumanFeature::FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QO
     mProgramFeatures->enableAttributeArray("a_pos");
 
     QMatrix4x4 tmp;
-    auto ratio = 0.01f/(cam->Roll()-cam->Target()).length();
+    tmp.setToIdentity();
+//    auto ratio = 0.01f/(cam->Roll()-cam->Target()).length();
 
-    tmp.translate(QVector3D(0.0f,0.0f,-ratio));
+//    tmp.translate(QVector3D(0.0f,0.0f,-ratio));
     mProgramFeatures->setUniformValue("m4_mvp", tmp*proj*view);
     mProgramFeatures->setUniformValue("v4_color", QVector4D(0.8, 0.8, 0.2, 0.6));
 
@@ -309,7 +340,8 @@ void LP_HumanFeature::FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QO
 
 void LP_HumanFeature::PainterDraw(QWidget *glW)
 {
-    if ( "window_Normal" == glW->objectName() || !mMember->cam){
+    if ( "window_Normal" == glW->objectName() || !mMember->cam
+         || !mShowLabels){
         return;
     }
     auto cam = mMember->cam;
@@ -330,9 +362,17 @@ void LP_HumanFeature::PainterDraw(QWidget *glW)
 
     painter.setFont(font);
 
+//    const QVector3D cpos = view.inverted()*QVector3D(0.0f,0.0f,0.0f);
+
+
     auto &&pts = mMember->get3DFeaturePoints();
     int i=1;
-    for ( auto &p : pts ){
+    for ( auto &p : pts ){  
+//        QVector3D cdir = (cpos - p).normalized();
+//        RTCRayHit &&rayhit = mMember->rayCast(p, cdir);
+//        if ( RTC_INVALID_GEOMETRY_ID != rayhit.hit.geomID ){
+//            continue;
+//        }
         auto v = view * p;
         QString fName(mMember->featurePoints[i-1].mName.c_str());
         int padding = 10;
@@ -436,6 +476,33 @@ void LP_HumanFeature::initializeGL()
     mInitialized = true;
 }
 
+RTCRayHit LP_HumanFeature::member::rayCast(const QVector3D &rayOrg, const QVector3D &rayDir)
+{
+    RTCIntersectContext context;
+    rtcInitIntersectContext(&context);
+
+    RTCRayHit rayhit;
+    RTCRay &ray = rayhit.ray;
+    ray.org_x = rayOrg.x();
+    ray.org_y = rayOrg.y();
+    ray.org_z = rayOrg.z();
+
+    ray.dir_x = rayDir.x();
+    ray.dir_y = rayDir.y();
+    ray.dir_z = rayDir.z();
+
+    ray.tnear = 0.001f;
+    ray.tfar = std::numeric_limits<float>::infinity();
+
+    rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+
+    rtcIntersect1(rtScene,
+                  &context,
+                  &rayhit);
+
+    return rayhit;
+}
+
 bool LP_HumanFeature::member::convert2ON_Mesh(LP_OpenMesh opMesh)
 {
     auto m = opMesh->Mesh();
@@ -491,27 +558,7 @@ bool LP_HumanFeature::member::pickFeaturePoint(QPoint &&pickPos)
     QVector3D cdir = (_ray - cpos).normalized();
 
 
-    RTCIntersectContext context;
-    rtcInitIntersectContext(&context);
-
-    RTCRayHit rayhit;
-    RTCRay &ray = rayhit.ray;
-    ray.org_x = cpos.x();
-    ray.org_y = cpos.y();
-    ray.org_z = cpos.z();
-
-    ray.dir_x = cdir.x();
-    ray.dir_y = cdir.y();
-    ray.dir_z = cdir.z();
-
-    ray.tnear = 0.01f;
-    ray.tfar = std::numeric_limits<float>::infinity();
-
-    rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
-
-    rtcIntersect1(rtScene,
-                  &context,
-                  &rayhit);
+    RTCRayHit &&rayhit = rayCast(cpos, cdir);
 
     pickPoint.reset();
     if ( RTC_INVALID_GEOMETRY_ID == rayhit.hit.geomID ){
@@ -558,7 +605,7 @@ void LP_HumanFeature::member::initializeEmbree3()
 {
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-    rtDevice = rtcNewDevice("verbose=1");
+    rtDevice = rtcNewDevice("verbose=0");
     rtScene = rtcNewScene(rtDevice);
     rtGeometry = rtcNewGeometry(rtDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
 }

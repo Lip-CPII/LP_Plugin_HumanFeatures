@@ -424,5 +424,7 @@ DEPENDPATH += $$PWD/extern/eigen-3.4-rc1/install/include/eigen3
 INCLUDEPATH += $$PWD/extern/eiquadprog-1.2.3/include
 DEPENDPATH += $$PWD/extern/eiquadprog-1.2.3/include
 
+INCLUDEPATH += $$PWD/extern/embree3/include
+DEPENDPATH += $$PWD/extern/embree3/include
 
 

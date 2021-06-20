@@ -52,18 +52,7 @@ const QStringList gShimaFeaturesList = {
    "T014"
 };
 
-double measurement_T001();
-double measurement_T002();
-double measurement_T003();
-double measurement_T026();
-double measurement_T011();
-double measurement_T028();
-double measurement_T022();
-double measurement_T063();
-double measurement_T016();
-double measurement_T006();
-double measurement_T023();
-double measurement_T014();
+
 
 struct LP_HumanFeature::member {
     RTCRayHit rayCast(const QVector3D &rayOrg, const QVector3D &rayDir);
@@ -80,6 +69,19 @@ struct LP_HumanFeature::member {
 
     double getShimaMeasurement(const QString &shimaFt );
     void exportSizeChart(const QString &filename);
+
+    double measurement_T001();
+    double measurement_T002();
+    double measurement_T003();
+    double measurement_T026();
+    double measurement_T011();
+    double measurement_T028();
+    double measurement_T022();
+    double measurement_T063();
+    double measurement_T016();
+    double measurement_T006();
+    double measurement_T023();
+    double measurement_T014();
 
     RTCDevice rtDevice;
     RTCScene rtScene;
@@ -1213,6 +1215,32 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
     file.close();
 }
 
+double LP_HumanFeature::member::measurement_T063()
+{
+    QStringList composite = {"Shoulder_R","Elbow_R","Wist_R"};
+    std::vector<QVector3D> measure_points;
+    int next = 0;
+
+    for ( auto &st : composite ) {
+        for ( auto &p : featurePoints ){
+            if ( p.mName.compare(st.toStdString())){
+                ++next;
+                measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
+                break;
+            }
+        }
+    }
+    if ( next != composite.size()){
+
+        return 0.0;
+    }
+    double measurement = 0.0;
+    for ( int i = 1; i < next; ++i ){
+        measurement += (measure_points[i] - measure_points[i]).length();
+    }
+    return measurement;
+}
+
 std::vector<QVector3D> LP_HumanFeature::member::get3DFeaturePoints()
 {
     const auto &nVs = mesh.VertexCount();
@@ -1246,3 +1274,4 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     }
     return curves;
 }
+

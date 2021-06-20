@@ -52,6 +52,19 @@ const QStringList gShimaFeaturesList = {
    "T014"
 };
 
+double measurement_T001();
+double measurement_T002();
+double measurement_T003();
+double measurement_T026();
+double measurement_T011();
+double measurement_T028();
+double measurement_T022();
+double measurement_T063();
+double measurement_T016();
+double measurement_T006();
+double measurement_T023();
+double measurement_T014();
+
 struct LP_HumanFeature::member {
     RTCRayHit rayCast(const QVector3D &rayOrg, const QVector3D &rayDir);
 
@@ -65,6 +78,7 @@ struct LP_HumanFeature::member {
     void importFeatures(const QString &filename);
     void exportFeatures(const QString &filename);
 
+    double getShimaMeasurement(const QString &shimaFt );
     void exportSizeChart(const QString &filename);
 
     RTCDevice rtDevice;
@@ -73,7 +87,7 @@ struct LP_HumanFeature::member {
     unsigned int rtGeomID;
     std::vector<uint> fids;
 
-    QMap<QString, void*> shimaFeatures;
+    QMap<QString, std::function<double()>> shimaFeatures;
 
     std::shared_ptr<FeaturePoint> pickPoint;
     std::vector<std::shared_ptr<FeaturePoint>> pickCurve;
@@ -183,7 +197,7 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
                 mMember->pickPoint.reset(); //Reset the pick Point
                 mMember->updateFPsList();   //Update the listview
                 emit glUpdateRequest();
-            } else if ( "Curves" ) {
+            } else if ( "Curves" == mCB_FeatureType->currentText()) {
                 auto name = QInputDialog::getText(0, "Input", "Feature Name");  //Ask for featture name
                 if ( name.isEmpty()) {
                     break;
@@ -210,9 +224,10 @@ QWidget *LP_HumanFeature::DockUi()
     QVBoxLayout *layout = new QVBoxLayout;
 
     mLabel = new QLabel("Select a mesh");
-    QStringList types={"Points", "Curves", "Girths"};
+    QStringList types={"Points", "Curves", "Girths", "All"};
     mCB_FeatureType = new QComboBox(widget);   //Type
     mCB_FeatureType->addItems(types);
+    mCB_FeatureType->setCurrentIndex(3);
 
     auto pFPGroupBox = new QGroupBox("Feature Points");
     auto fpLayout = new QVBoxLayout;
@@ -274,6 +289,10 @@ QWidget *LP_HumanFeature::DockUi()
     });
     connect(mCB_FeatureType, &QComboBox::currentIndexChanged, [pFCGroupBox](const int &id){
         pFCGroupBox->setHidden( 1 != id );
+    });
+
+    connect(mCB_FeatureType, &QComboBox::currentIndexChanged, [this](){
+        emit glUpdateRequest();
     });
 
     //For feature points update
@@ -438,32 +457,39 @@ void LP_HumanFeature::FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QO
         f->glDrawArrays(GL_POINTS, 0, 1);
     }
 
-    f->glLineWidth(3.f);
 //    for ( auto &fc : mMember->featureCurves ){
 //        mProgramFeatures->setAttributeArray("a_pos", fc.data());
 //        f->glDrawArrays(GL_LINE_STRIP, 0, fc.size());
 //    }
 
-    mProgramFeatures->setUniformValue("v4_color", QVector4D(1.0, 0.6, 0.4, 0.6));
-    f->glEnable(GL_PROGRAM_POINT_SIZE);     //Enable point-size controlled by shader
+    if ( "Points" == mCB_FeatureType->currentText()
+         || "All" == mCB_FeatureType->currentText()) {//Draw Feature Points
 
-    auto &&fpts = mMember->get3DFeaturePoints();
-    mProgramFeatures->setAttributeArray("a_pos", fpts.data());
-    f->glDrawArrays(GL_POINTS, 0, fpts.size());
-
-    f->glDisable(GL_DEPTH_TEST);
-    auto &&fcs = mMember->get3DFeatureCurves();
-    for ( auto &fc : fcs ){
-        mProgramFeatures->setAttributeArray("a_pos", fc.data());
-        f->glDrawArrays(GL_LINE_STRIP, 0, fc.size());
+        mProgramFeatures->setUniformValue("v4_color", QVector4D(0.2, 0.8, 0.2, 0.6));
+        f->glEnable(GL_PROGRAM_POINT_SIZE);     //Enable point-size controlled by shader
+        auto &&fpts = mMember->get3DFeaturePoints();
+        mProgramFeatures->setAttributeArray("a_pos", fpts.data());
+        f->glDrawArrays(GL_POINTS, 0, fpts.size());
     }
-    f->glEnable(GL_DEPTH_TEST);
+
+    if ( "Curves" == mCB_FeatureType->currentText()
+         || "All" == mCB_FeatureType->currentText()) {//Draw Feature Curves
+
+        f->glLineWidth(5.f);
+        mProgramFeatures->setUniformValue("v4_color", QVector4D(1.0, 0.6, 0.4, 0.6));
+        auto &&fcs = mMember->get3DFeatureCurves();
+        for ( auto &fc : fcs ){
+            mProgramFeatures->setAttributeArray("a_pos", fc.data());
+            f->glDrawArrays(GL_LINE_STRIP, 0, fc.size());
+        }
+        f->glLineWidth(1.f);
+    }
 
     mProgramFeatures->disableAttributeArray("a_pos");
     mProgramFeatures->release();
 
     f->glDepthRangef(0.0f, 1.0f);
-    f->glLineWidth(1.f);
+
     f->glDisable(GL_BLEND);
     fbo->release();
 }
@@ -493,53 +519,57 @@ void LP_HumanFeature::PainterDraw(QWidget *glW)
     painter.setFont(font);
 
 //    const QVector3D cpos = view.inverted()*QVector3D(0.0f,0.0f,0.0f);
-
-
-    auto &&pts = mMember->get3DFeaturePoints();
     int i=1;
-    for ( auto &p : pts ){         
-        auto v = view * p;
-        QString fName(mMember->featurePoints[i-1].mName.c_str());
-        int padding = 10;
-        int x = padding;
-        if ( 0 == i % 2 ){
-            x = w - fmetric.boundingRect(fName).width() - padding;
-            painter.drawLine(QPointF(x, (i-1)*20)+fmetric.boundingRect(fName).bottomLeft(),
-                             QPointF(v.x(), h-v.y()));
 
-            painter.drawText(QPointF(x, (i-1)*20), QString("%1").arg(fName));
-        } else {
-            painter.drawLine(QPointF(x, i*20)+fmetric.boundingRect(fName).bottomRight(),
-                             QPointF(v.x(), h-v.y()));
+    if ( "Points" == mCB_FeatureType->currentText()
+         || "All" == mCB_FeatureType->currentText()){
+        auto &&pts = mMember->get3DFeaturePoints();
+        for ( auto &p : pts ){
+            auto v = view * p;
+            QString fName(mMember->featurePoints[i-1].mName.c_str());
+            int padding = 10;
+            int x = padding;
+            if ( 0 == i % 2 ){
+                x = w - fmetric.boundingRect(fName).width() - padding;
+                painter.drawLine(QPointF(x, (i-1)*20)+fmetric.boundingRect(fName).bottomLeft(),
+                                 QPointF(v.x(), h-v.y()));
 
-            painter.drawText(QPointF(x, i*20), QString("%1").arg(fName));
+                painter.drawText(QPointF(x, (i-1)*20), QString("%1").arg(fName));
+            } else {
+                painter.drawLine(QPointF(x, i*20)+fmetric.boundingRect(fName).bottomRight(),
+                                 QPointF(v.x(), h-v.y()));
+
+                painter.drawText(QPointF(x, i*20), QString("%1").arg(fName));
+            }
+            ++i;
         }
-        ++i;
     }
+    if ( "Curves" == mCB_FeatureType->currentText()
+         || "All" == mCB_FeatureType->currentText()) {
+        auto &&curvs = mMember->get3DFeatureCurves();
 
-    auto &&curvs = mMember->get3DFeatureCurves();
+        painter.setPen(qRgb(200,100,100));
+        int j=1;
+        for ( auto &c : curvs ){
+            auto &&p = c.front();
+            auto v = view * p;
+            QString fName(mMember->featureCurves[j-1].mName.c_str());
+            int padding = 10;
+            int x = padding;
+            if ( 0 == i % 2 ){
+                x = w - fmetric.boundingRect(fName).width() - padding;
+                painter.drawLine(QPointF(x, (i-1)*20)+fmetric.boundingRect(fName).bottomLeft(),
+                                 QPointF(v.x(), h-v.y()));
 
-    painter.setPen(qRgb(200,100,100));
-    int j=1;
-    for ( auto &c : curvs ){
-        auto &&p = c.front();
-        auto v = view * p;
-        QString fName(mMember->featureCurves[j-1].mName.c_str());
-        int padding = 10;
-        int x = padding;
-        if ( 0 == i % 2 ){
-            x = w - fmetric.boundingRect(fName).width() - padding;
-            painter.drawLine(QPointF(x, (i-1)*20)+fmetric.boundingRect(fName).bottomLeft(),
-                             QPointF(v.x(), h-v.y()));
+                painter.drawText(QPointF(x, (i-1)*20), QString("%1").arg(fName));
+            } else {
+                painter.drawLine(QPointF(x, i*20)+fmetric.boundingRect(fName).bottomRight(),
+                                 QPointF(v.x(), h-v.y()));
 
-            painter.drawText(QPointF(x, (i-1)*20), QString("%1").arg(fName));
-        } else {
-            painter.drawLine(QPointF(x, i*20)+fmetric.boundingRect(fName).bottomRight(),
-                             QPointF(v.x(), h-v.y()));
-
-            painter.drawText(QPointF(x, i*20), QString("%1").arg(fName));
+                painter.drawText(QPointF(x, i*20), QString("%1").arg(fName));
+            }
+            ++i; ++j;
         }
-        ++i; ++j;
     }
 
     QPen pen(qRgb(220,255,100));
@@ -1135,6 +1165,16 @@ void LP_HumanFeature::member::exportFeatures(const QString &filename)
     file.write(jDoc.toJson());
     file.close();
 
+}
+
+double LP_HumanFeature::member::getShimaMeasurement(const QString &shimaFt)
+{
+    auto it = shimaFeatures.find(shimaFt);
+    if ( shimaFeatures.end() == it ){
+        qWarning() << "Unknown shima feature : " << shimaFt;
+        return 0.0;
+    }
+    return (*it)();
 }
 
 void LP_HumanFeature::member::exportSizeChart(const QString &filename)

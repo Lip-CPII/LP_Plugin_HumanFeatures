@@ -105,16 +105,13 @@ struct LP_HumanFeature::member {
 
     std::vector<QVector3D> get3DFeaturePoints();
     std::vector<std::vector<QVector3D>> get3DFeatureCurves();
-<<<<<<< HEAD
     std::vector<std::vector<QVector3D>> get3DFeatureGirths();
 
-=======
     //=================Singa===================//
     double getCurveLength(const FeatureCurve &curve);
     double getP2CLength(const FeaturePoint &point,const FeatureCurve &curve);
     double getP2PLength(const FeaturePoint &pointA,const FeaturePoint &pointB);
     //=================June 25===============//
->>>>>>> ecb2be61e24947f85ecbf9f985b4b8ae0f1d4521
     ON_Mesh mesh;
     std::vector<FeaturePoint> featurePoints;
     std::vector<FeatureCurve> featureCurves;
@@ -890,7 +887,7 @@ bool LP_HumanFeature::member::pickFeatureGirth()
     for(int n =0; n<mesh.VertexCount(); n++)
     {
         auto v = mesh.Vertex(n);
-        vertices.push_back({v.x, v.y, v.z});
+        vertices.push_back({float(v.x), float(v.y), float(v.z)});
         }
 
     std::vector<Intersector::Face> faces;
@@ -1515,7 +1512,6 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     return curves;
 }
 
-<<<<<<< HEAD
 std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths()
 {
     const auto &nVs = mesh.VertexCount();
@@ -1529,7 +1525,6 @@ std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths(
     return girths;
 }
 
-=======
 double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
 {
     double distance = 0;
@@ -1567,7 +1562,3 @@ double LP_HumanFeature::member::getP2PLength(const FeaturePoint &pointA, const F
     distance = ptA.distanceToPoint(ptB);
     return distance;
 }
-
-
-
->>>>>>> ecb2be61e24947f85ecbf9f985b4b8ae0f1d4521

@@ -1281,7 +1281,7 @@ double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
     double distance = 0;
     if(curve.mCurve.size()<=0) return 0;
     std::vector<QVector3D> pts;
-    for ( int i =0;i<curve.mCurve.size()-1;i++)
+    for ( int i =0;i<int(curve.mCurve.size())-1;i++)
     {
         distance+=getP2PLength(curve.mCurve[i],curve.mCurve[i]);
     }

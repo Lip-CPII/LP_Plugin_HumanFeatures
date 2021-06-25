@@ -213,6 +213,7 @@ SOURCES += \
 
 HEADERS += \
     LP_Plugin_HumanFeature_global.h \
+    MeshPlaneIntersect.hpp \
     extern/eiquadprog.hpp \
     extern/opennurbs/opennurbs.h \
     extern/opennurbs/opennurbs_3dm.h \

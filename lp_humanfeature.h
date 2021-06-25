@@ -55,6 +55,15 @@ public:
         std::vector<FeaturePoint> mCurve;   //Vector of feature points
     };
 
+    /**
+     * @brief The FeaturePoint struct
+     * Barycentric representattion of a point on a mesh
+     */
+    struct FeatureGirth {
+        std::string mName;
+        std::vector<std::tuple<int, int, float>> mParams; //Vector of parametric points depends on topology
+    };
+
 
 public slots:
     void FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QOpenGLFramebufferObject *fbo, const LP_RendererCam &cam, const QVariant &options) override;

@@ -323,6 +323,7 @@ QWidget *LP_HumanFeature::DockUi()
         mMember->importFeatures(filename);
         mMember->updateFPsList();
         mMember->updateFCsList();
+        mMember->updateFGsList();
         emit glUpdateRequest();
     });
 

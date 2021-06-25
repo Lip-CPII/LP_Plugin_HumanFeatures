@@ -98,9 +98,9 @@ struct LP_HumanFeature::member {
     std::vector<QVector3D> get3DFeaturePoints();
     std::vector<std::vector<QVector3D>> get3DFeatureCurves();
     //=================Singa===================//
-    double getCurveLength();
-    double getP2CLength(FeaturePoint point,FeatureCurve curve);
-    double getP2PLength(FeaturePoint pointA,FeaturePoint pointB);
+    double getCurveLength(const FeatureCurve &curve);
+    double getP2CLength(const FeaturePoint &point,const FeatureCurve &curve);
+    double getP2PLength(const FeaturePoint &pointA,const FeaturePoint &pointB);
     //=================June 25===============//
     ON_Mesh mesh;
     std::vector<FeaturePoint> featurePoints;
@@ -194,7 +194,7 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
             case Qt::Key_Space:
             case Qt::Key_Enter:
             if ( "Points" == mCB_FeatureType->currentText()) {
-                auto name = QInputDialog::getText(0, "Input", "Feature Name");  //Ask for featture name
+                auto name = QInputDialog::getText(0, "Inp ut", "Feature Name");  //Ask for featture name
                 if ( name.isEmpty()) {
                     break;
                 }
@@ -484,7 +484,6 @@ void LP_HumanFeature::FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QO
         f->glLineWidth(5.f);
         mProgramFeatures->setUniformValue("v4_color", QVector4D(1.0, 0.6, 0.4, 0.6));
         auto &&fcs = mMember->get3DFeatureCurves();
-        mMember->getCurveLength();
         for ( auto &fc : fcs ){
             mProgramFeatures->setAttributeArray("a_pos", fc.data());
             f->glDrawArrays(GL_LINE_STRIP, 0, fc.size());
@@ -1277,21 +1276,43 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     return curves;
 }
 
-double LP_HumanFeature::member::getCurveLength()
+double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
 {
-    if(featureCurves.size()<=0) return 0;
-    for ( auto &fc : featureCurves ){
-        std::vector<QVector3D> pts;
-        for ( auto &fp : fc.mCurve ){
-            pts.emplace_back(evaluationFeaturePoint(mesh, fp));
-        }
-        double distance = 0;
-        for(int i =0;i<pts.size()-1;i++)
-        {
-            distance+=pts[i].distanceToPoint(pts[i-1]);
-        }
-        qDebug()<<QString::fromStdString(fc.mName)<<"Distance ="<<distance;
+    double distance = 0;
+    if(curve.mCurve.size()<=0) return 0;
+    std::vector<QVector3D> pts;
+    for ( int i =0;i<curve.mCurve.size()-1;i++)
+    {
+        distance+=getP2PLength(curve.mCurve[i],curve.mCurve[i]);
     }
-    return 1;
+    qDebug()<<QString::fromStdString(curve.mName)<<"Distance ="<<distance;
+    return distance;
 }
+
+double LP_HumanFeature::member::getP2CLength(const FeaturePoint &point, const FeatureCurve &curve)
+{
+    double distance=9999;
+    std::string idx;
+    for(auto &pt : curve.mCurve)
+    {
+        if(getP2PLength(pt,point)<distance)
+        {
+            distance = getP2PLength(pt,point);
+            idx = pt.mName;
+        }
+    }
+    return distance;
+}
+
+double LP_HumanFeature::member::getP2PLength(const FeaturePoint &pointA, const FeaturePoint &pointB)
+{
+    double distance=0;
+    QVector3D ptA,ptB;
+    ptA = evaluationFeaturePoint(mesh, pointA);
+    ptB = evaluationFeaturePoint(mesh, pointB);
+    distance = ptA.distanceToPoint(ptB);
+    return distance;
+}
+
+
 

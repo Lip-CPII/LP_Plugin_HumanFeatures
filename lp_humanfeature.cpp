@@ -113,7 +113,10 @@ struct LP_HumanFeature::member {
     double getP2CLength(const FeaturePoint &point,const FeatureCurve &curve);
     double getP2PLength(const FeaturePoint &pointA,const FeaturePoint &pointB);
     //=================June 25===============//
+<<<<<<< HEAD
 
+=======
+>>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59
     ON_Mesh mesh;
     std::vector<FeaturePoint> featurePoints;
     std::vector<FeatureCurve> featureCurves;
@@ -325,6 +328,7 @@ QWidget *LP_HumanFeature::DockUi()
         mMember->importFeatures(filename);
         mMember->updateFPsList();
         mMember->updateFCsList();
+        mMember->updateFGsList();
         emit glUpdateRequest();
     });
 
@@ -889,7 +893,7 @@ bool LP_HumanFeature::member::pickFeatureGirth()
     for(int n =0; n<mesh.VertexCount(); n++)
     {
         auto v = mesh.Vertex(n);
-        vertices.push_back({v.x, v.y, v.z});
+        vertices.push_back({float(v.x), float(v.y), float(v.z)});
         }
 
     std::vector<Intersector::Face> faces;
@@ -1643,7 +1647,10 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     return curves;
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59
 std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths()
 {
     const auto &nVs = mesh.VertexCount();
@@ -1657,13 +1664,16 @@ std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths(
     return girths;
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59
 double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
 {
     double distance = 0;
     if(curve.mCurve.size()<=0) return 0;
     std::vector<QVector3D> pts;
-    for ( int i =0;i<curve.mCurve.size()-1;i++)
+    for ( int i =0;i<int(curve.mCurve.size())-1;i++)
     {
         distance+=getP2PLength(curve.mCurve[i],curve.mCurve[i+1]);
     }
@@ -1695,7 +1705,10 @@ double LP_HumanFeature::member::getP2PLength(const FeaturePoint &pointA, const F
     distance = ptA.distanceToPoint(ptB);
     return distance;
 }
+<<<<<<< HEAD
 
 
 
 
+=======
+>>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59

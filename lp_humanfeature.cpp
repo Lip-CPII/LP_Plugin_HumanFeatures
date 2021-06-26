@@ -76,6 +76,7 @@ struct LP_HumanFeature::member {
 
     double getShimaMeasurement(const QString &shimaFt );
     void exportSizeChart(const QString &filename);
+    double pointName2Measurements(QStringList composite, std::string type);
 
     double measurement_T001();
     double measurement_T002();
@@ -105,16 +106,14 @@ struct LP_HumanFeature::member {
 
     std::vector<QVector3D> get3DFeaturePoints();
     std::vector<std::vector<QVector3D>> get3DFeatureCurves();
-<<<<<<< HEAD
     std::vector<std::vector<QVector3D>> get3DFeatureGirths();
 
-=======
     //=================Singa===================//
     double getCurveLength(const FeatureCurve &curve);
     double getP2CLength(const FeaturePoint &point,const FeatureCurve &curve);
     double getP2PLength(const FeaturePoint &pointA,const FeaturePoint &pointB);
     //=================June 25===============//
->>>>>>> ecb2be61e24947f85ecbf9f985b4b8ae0f1d4521
+
     ON_Mesh mesh;
     std::vector<FeaturePoint> featurePoints;
     std::vector<FeatureCurve> featureCurves;
@@ -1433,17 +1432,58 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
     QRegularExpression tag("(T\\d\\d\\d,)");
     QStringList list;
     QTextStream in(&data);
+    QTextStream out(&file);
     while (!in.atEnd()){
-        auto &&line = in.readLine();
-        auto m = tag.match(line);
+        auto &&inLine = in.readLine();
+        auto m = tag.match(inLine);
+        QString outLine;
         if ( m.hasMatch()){
             list << m.captured();
-            auto data = line.split(",");
-//            if ( tag == "T003"){
-//               //data[4] = measurement_T003();
-//            }
+            auto data_ = inLine.split(",");
+            if ( data_[0] == "T001"){
+               data_[3] = QString("%1").arg(measurement_T001());
+            }
+            else if ( data_[0] == "T002"){
+               data_[3] = QString("%1").arg(measurement_T002());
+            }
+            else if ( data_[0] == "T003"){
+               data_[3] = QString("%1").arg(measurement_T003());
+            }
+            else if ( data_[0] == "T026"){
+               data_[3] = QString("%1").arg(measurement_T026());
+            }
+            else if ( data_[0] == "T022"){
+               data_[3] = QString("%1").arg(measurement_T022());
+            }
+            else if ( data_[0] == "T063"){
+               data_[3] = QString("%1").arg(measurement_T063());
+            }
+            else if ( data_[0] == "T011"){
+               data_[3] = QString("%1").arg(measurement_T011());
+            }
+            else if ( data_[0] == "T028"){
+               data_[3] = QString("%1").arg(measurement_T028());
+            }
+            else if ( data_[0] == "T016"){
+               data_[3] = QString("%1").arg(measurement_T016());
+            }
+            else if ( data_[0] == "T006"){
+               data_[3] = QString("%1").arg(measurement_T006());
+            }
+            else if ( data_[0] == "T023"){
+               data_[3] = QString("%1").arg(measurement_T023());
+            }
+            else if ( data_[0] == "T014"){
+               data_[3] = QString("%1").arg(measurement_T014());
+            }
             //USER
+            for (int i = 0; i<data_.size(); i++){
+                outLine += data_[i]+",";
+            }
+            outLine += "\n";
+            out << outLine;
         }
+        else {out << inLine + "\n";}
     }
 //    auto i = tag.globalMatch(data);
 
@@ -1456,31 +1496,119 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
     file.close();
 }
 
-double LP_HumanFeature::member::measurement_T063()
+double LP_HumanFeature::member::pointName2Measurements(QStringList composite, std::string type)
 {
-    QStringList composite = {"Shoulder_R","Elbow_R","Wist_R"};
     std::vector<QVector3D> measure_points;
     int next = 0;
 
     for ( auto &st : composite ) {
+        if (type == "points") {
         for ( auto &p : featurePoints ){
-            if ( p.mName.compare(st.toStdString())){
+            if ( 0 == p.mName.compare(st.toStdString())){
                 ++next;
                 measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
-                break;
             }
         }
+        }
+        else if (type == "curves"){
+            for ( auto &c : featureCurves ){
+                if ( 0 == c.mName.compare(st.toStdString())){
+                    ++next;
+                    for (unsigned long i = 0; i< c.mCurve.size(); i++)
+                        measure_points.emplace_back(evaluationFeaturePoint(mesh, c.mCurve[i]));
+                    break;
+                }
+            }
+        }
+        else if (type == "girths"){
+            for ( auto &g : featureGirths ){
+                if ( 0 == g.mName.compare(st.toStdString())){
+                    ++next;
+                    measure_points = evaluationFeatureGirth(mesh, g);
+                }
+            }
+         }
+                break;
     }
-    if ( next != composite.size()){
 
+//    if ( next != composite.size()){
+//        return 0.0;
+//    }
+    if ( measure_points.empty()) {
         return 0.0;
     }
     double measurement = 0.0;
-    for ( int i = 1; i < next; ++i ){
-        measurement += (measure_points[i] - measure_points[i]).length();
+    for ( int i = 0; i < measure_points.size()-1; ++i ){
+//    for ( int i = 1; i < measure_points.size(); ++i ){
+//        measurement += (measure_points[i] - measure_points[i-1]).length();
+        measurement += measure_points[i].distanceToPoint(measure_points[i+1]);
     }
+    std::cout<<"measurements:"<<measurement<<std::endl;
     return measurement;
 }
+
+
+double LP_HumanFeature::member::measurement_T063()
+{
+    QStringList composite = {"Shoulder_R","Elbow_R_U","Wist_R_U"};
+    return pointName2Measurements(composite, "points");
+}
+double LP_HumanFeature::member::measurement_T001()
+{
+    QStringList composite = {"T028"};
+    return (measurement_T028()+20);
+}
+double LP_HumanFeature::member::measurement_T002()
+{
+    QStringList composite = {"Bust_Girth"};
+    return pointName2Measurements(composite, "girths")/2;
+}
+double LP_HumanFeature::member::measurement_T003()
+{
+    QStringList composite = {"Shoulder_L","Neck_B","Shoulder_R"};
+    return pointName2Measurements(composite, "points");
+}
+double LP_HumanFeature::member::measurement_T026()
+{
+    QStringList composite = {"Chest_U"};
+    return pointName2Measurements(composite, "curves");
+}
+double LP_HumanFeature::member::measurement_T011()
+{
+    QStringList composite = {"Armhole"};
+    return pointName2Measurements(composite, "curves");
+}
+double LP_HumanFeature::member::measurement_T028()
+{
+    QStringList composite = {"Shoulder_R", "Bust_R", "Helper_01"};
+    return pointName2Measurements(composite, "points");
+}
+double LP_HumanFeature::member::measurement_T022()
+{
+    QStringList composite = {"Waist_Girth"};
+    return pointName2Measurements(composite, "girths")/2;
+}
+double LP_HumanFeature::member::measurement_T016()
+{
+    QStringList composite = {"Arm_Width"};
+    return pointName2Measurements(composite, "curves");
+}
+double LP_HumanFeature::member::measurement_T006()
+{
+    QStringList composite = {"Chest_U_B"};
+    return pointName2Measurements(composite, "curves");
+}
+double LP_HumanFeature::member::measurement_T023()
+{
+    QStringList composite = {"T023"};
+    return pointName2Measurements(composite, "curves");
+}
+double LP_HumanFeature::member::measurement_T014()
+{
+    QStringList composite = {"Neck_B", "Neck_R", "Wist_R_U"};
+    return pointName2Measurements(composite, "points");
+}
+
 
 std::vector<QVector3D> LP_HumanFeature::member::get3DFeaturePoints()
 {
@@ -1515,7 +1643,7 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     return curves;
 }
 
-<<<<<<< HEAD
+
 std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths()
 {
     const auto &nVs = mesh.VertexCount();
@@ -1529,7 +1657,7 @@ std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths(
     return girths;
 }
 
-=======
+
 double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
 {
     double distance = 0;
@@ -1537,7 +1665,7 @@ double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
     std::vector<QVector3D> pts;
     for ( int i =0;i<curve.mCurve.size()-1;i++)
     {
-        distance+=getP2PLength(curve.mCurve[i],curve.mCurve[i]);
+        distance+=getP2PLength(curve.mCurve[i],curve.mCurve[i+1]);
     }
     qDebug()<<QString::fromStdString(curve.mName)<<"Distance ="<<distance;
     return distance;
@@ -1570,4 +1698,4 @@ double LP_HumanFeature::member::getP2PLength(const FeaturePoint &pointA, const F
 
 
 
->>>>>>> ecb2be61e24947f85ecbf9f985b4b8ae0f1d4521
+

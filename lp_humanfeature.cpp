@@ -113,10 +113,7 @@ struct LP_HumanFeature::member {
     double getP2CLength(const FeaturePoint &point,const FeatureCurve &curve);
     double getP2PLength(const FeaturePoint &pointA,const FeaturePoint &pointB);
     //=================June 25===============//
-<<<<<<< HEAD
 
-=======
->>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59
     ON_Mesh mesh;
     std::vector<FeaturePoint> featurePoints;
     std::vector<FeatureCurve> featureCurves;
@@ -1507,12 +1504,13 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
 
     for ( auto &st : composite ) {
         if (type == "points") {
-        for ( auto &p : featurePoints ){
-            if ( 0 == p.mName.compare(st.toStdString())){
-                ++next;
-                measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
+            for ( auto &p : featurePoints ){
+                if ( 0 == p.mName.compare(st.toStdString())){
+                    ++next;
+                    measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
+                    break;
+                }
             }
-        }
         }
         else if (type == "curves"){
             for ( auto &c : featureCurves ){
@@ -1529,10 +1527,11 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
                 if ( 0 == g.mName.compare(st.toStdString())){
                     ++next;
                     measure_points = evaluationFeatureGirth(mesh, g);
+                    break;
                 }
             }
          }
-                break;
+         break;
     }
 
 //    if ( next != composite.size()){
@@ -1542,12 +1541,12 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
         return 0.0;
     }
     double measurement = 0.0;
-    for ( int i = 0; i < measure_points.size()-1; ++i ){
+    for ( int i = 0; i < int(measure_points.size()-1); ++i ){
 //    for ( int i = 1; i < measure_points.size(); ++i ){
 //        measurement += (measure_points[i] - measure_points[i-1]).length();
         measurement += measure_points[i].distanceToPoint(measure_points[i+1]);
     }
-    std::cout<<"measurements:"<<measurement<<std::endl;
+    qDebug() << "measurements:" << measurement;
     return measurement;
 }
 
@@ -1557,56 +1556,67 @@ double LP_HumanFeature::member::measurement_T063()
     QStringList composite = {"Shoulder_R","Elbow_R_U","Wist_R_U"};
     return pointName2Measurements(composite, "points");
 }
+
 double LP_HumanFeature::member::measurement_T001()
 {
     QStringList composite = {"T028"};
     return (measurement_T028()+20);
 }
+
 double LP_HumanFeature::member::measurement_T002()
 {
     QStringList composite = {"Bust_Girth"};
     return pointName2Measurements(composite, "girths")/2;
 }
+
 double LP_HumanFeature::member::measurement_T003()
 {
     QStringList composite = {"Shoulder_L","Neck_B","Shoulder_R"};
     return pointName2Measurements(composite, "points");
 }
+
 double LP_HumanFeature::member::measurement_T026()
 {
     QStringList composite = {"Chest_U"};
     return pointName2Measurements(composite, "curves");
 }
+
 double LP_HumanFeature::member::measurement_T011()
 {
     QStringList composite = {"Armhole"};
     return pointName2Measurements(composite, "curves");
 }
+
 double LP_HumanFeature::member::measurement_T028()
 {
     QStringList composite = {"Shoulder_R", "Bust_R", "Helper_01"};
     return pointName2Measurements(composite, "points");
 }
+
 double LP_HumanFeature::member::measurement_T022()
 {
     QStringList composite = {"Waist_Girth"};
     return pointName2Measurements(composite, "girths")/2;
 }
+
 double LP_HumanFeature::member::measurement_T016()
 {
     QStringList composite = {"Arm_Width"};
     return pointName2Measurements(composite, "curves");
 }
+
 double LP_HumanFeature::member::measurement_T006()
 {
     QStringList composite = {"Chest_U_B"};
     return pointName2Measurements(composite, "curves");
 }
+
 double LP_HumanFeature::member::measurement_T023()
 {
     QStringList composite = {"T023"};
     return pointName2Measurements(composite, "curves");
 }
+
 double LP_HumanFeature::member::measurement_T014()
 {
     QStringList composite = {"Neck_B", "Neck_R", "Wist_R_U"};
@@ -1647,10 +1657,6 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     return curves;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59
 std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths()
 {
     const auto &nVs = mesh.VertexCount();
@@ -1664,10 +1670,6 @@ std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths(
     return girths;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59
 double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
 {
     double distance = 0;
@@ -1705,10 +1707,3 @@ double LP_HumanFeature::member::getP2PLength(const FeaturePoint &pointA, const F
     distance = ptA.distanceToPoint(ptB);
     return distance;
 }
-<<<<<<< HEAD
-
-
-
-
-=======
->>>>>>> 53eb3fd0cd860adc6400ce1964391478baf64c59

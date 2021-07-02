@@ -1017,14 +1017,13 @@ bool LP_HumanFeature::member::projFeatureCurve(const std::vector<QPoint> &projli
                     auto tmpF = mesh.m_F.At(e->m_topfi[i]);
 
                     ON_3dVector n;
-                    Q_ASSERT(tmpF->ComputeFaceNormal(pointListRef, n));
+                    tmpF->ComputeFaceNormal(pointListRef, n);
                     if ( std::numeric_limits<float>::epsilon() <= ON_3dVector::DotProduct(n, ON_3dVector(0.0,0.0,1.0))){
                         fid = e->m_topfi[i];
                         break;
                     }
                 }
                 if ( 0 > fid ){
-                    qWarning() << "Back face";
                     continue;
                 }
                 const auto teid = int(e - topo.m_tope.First());

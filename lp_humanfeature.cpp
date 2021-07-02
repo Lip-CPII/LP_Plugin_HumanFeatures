@@ -11,12 +11,15 @@
 #include "xmmintrin.h"
 #include "pmmintrin.h"
 
+#include "MeshPlaneIntersect.hpp"
+
 #include "embree3/rtcore.h"
 #include "embree3/rtcore_common.h"
 #include "embree3/rtcore_ray.h"
 
 #include "lp_openmesh.h"
 #include "lp_renderercam.h"
+#include <iostream>
 
 #include "renderer/lp_glselector.h"
 
@@ -42,6 +45,9 @@
 #include <QtConcurrent/QtConcurrent>
 
 
+template<> std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> MeshPlaneIntersect<float,int>::Mesh::o_edgePaths = std::vector<EdgePath>();
+
+
 const QStringList gShimaFeaturesList = {
    "T001",
    "T002",
@@ -65,8 +71,10 @@ struct LP_HumanFeature::member {
     bool convert2ON_Mesh(LP_OpenMesh opMesh);
 
     bool pickFeaturePoint(QPoint &&pickPos);
+    bool pickFeatureGirth();
     bool projFeatureCurve(const std::vector<QPoint> &projline, const QString &name);
     QVector3D evaluationFeaturePoint(const ON_Mesh &m, const FeaturePoint &fp);
+    std::vector<QVector3D> evaluationFeatureGirth(const ON_Mesh &m, const FeatureGirth &fg);
     void initializeEmbree3();
 
     void importFeatures(const QString &filename);
@@ -74,6 +82,7 @@ struct LP_HumanFeature::member {
 
     double getShimaMeasurement(const QString &shimaFt );
     void exportSizeChart(const QString &filename);
+    double pointName2Measurements(QStringList composite, std::string type);
 
     double measurement_T001();
     double measurement_T002();
@@ -98,18 +107,28 @@ struct LP_HumanFeature::member {
 
     std::shared_ptr<FeaturePoint> pickPoint;
     std::vector<std::shared_ptr<FeaturePoint>> pickCurve;
+    std::shared_ptr<FeatureGirth> pickGirth; //Temporary feature girth
     std::vector<QPoint> projectLine;
 
     std::vector<QVector3D> get3DFeaturePoints();
     std::vector<std::vector<QVector3D>> get3DFeatureCurves();
+    std::vector<std::vector<QVector3D>> get3DFeatureGirths();
+
+    //=================Singa===================//
+    double getCurveLength(const FeatureCurve &curve);
+    double getP2CLength(const FeaturePoint &point,const FeatureCurve &curve);
+    double getP2PLength(const FeaturePoint &pointA,const FeaturePoint &pointB);
+    //=================June 25===============//
 
     ON_Mesh mesh;
     std::vector<FeaturePoint> featurePoints;
     std::vector<FeatureCurve> featureCurves;
+    std::vector<FeatureGirth> featureGirths;
     LP_RendererCam cam;
 
     std::function<void()> updateFPsList;
     std::function<void()> updateFCsList;
+    std::function<void()> updateFGsList;
     ~member(){
         rtcReleaseScene(rtScene);
         rtcReleaseDevice(rtDevice);
@@ -153,6 +172,10 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
                 return true;
             }else{
                 mMember->pickFeaturePoint(e->pos());
+                if ("Girths" == mCB_FeatureType->currentText()){
+                    mMember->pickFeatureGirth();
+                }
+//                std::cout<<"girth test"<<std::endl;
                 emit glUpdateRequest();
                 return true;
             }
@@ -163,6 +186,7 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
             mMember->projectLine.clear();
             mMember->pickCurve.clear();
             mMember->pickPoint.reset();
+            mMember->pickGirth.reset();
             mLabel->setText("Select A Mesh");
 
             emit glUpdateRequest();
@@ -195,7 +219,7 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
             case Qt::Key_Space:
             case Qt::Key_Enter:
             if ( "Points" == mCB_FeatureType->currentText()) {
-                auto name = QInputDialog::getText(0, "Input", "Feature Name");  //Ask for featture name
+                auto name = QInputDialog::getText(0, "Inp ut", "Feature Name");  //Ask for featture name
                 if ( name.isEmpty()) {
                     break;
                 }
@@ -213,14 +237,25 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
                 mMember->updateFCsList();   //Update the listview
                 mMember->projectLine.clear();
                 emit glUpdateRequest();
-            } else {
-                //Feature Girth
+            } else if ( "Girths" == mCB_FeatureType->currentText()){
+                //Feature Girths
+                auto name = QInputDialog::getText(0, "Input", "Feature Name");  //Ask for featture name
+                if ( name.isEmpty()) {
+                    break;
+                }
+                mMember->pickGirth->mName = name.toStdString();
+                mMember->featureGirths.emplace_back( *mMember->pickGirth.get());
+                mMember->pickGirth.reset(); //Reset the pick Point
+                mMember->updateFGsList();   //Update the listview
+                emit glUpdateRequest();
+
             }
             break;
         }
     }
     return QObject::eventFilter(watched, event);
 }
+
 
 QWidget *LP_HumanFeature::DockUi()
 {
@@ -250,6 +285,13 @@ QWidget *LP_HumanFeature::DockUi()
     fcLayout->addWidget(Treeview_curv);
     pFCGroupBox->setLayout(fcLayout);
 
+    auto pFGGroupBox = new QGroupBox("Feature Girths");
+    auto fgLayout = new QVBoxLayout;
+    auto Treeview_girth = new QTreeView;
+
+    fgLayout->addWidget(Treeview_girth);
+    pFGGroupBox->setLayout(fgLayout);
+
     QPushButton *pb_export_sizechart = new QPushButton("Export SizeChart");
 
     QPushButton *pb_import_features = new QPushButton("Import Features");
@@ -259,6 +301,7 @@ QWidget *LP_HumanFeature::DockUi()
     layout->addWidget(mCB_FeatureType);
     layout->addWidget(pFPGroupBox);
     layout->addWidget(pFCGroupBox);
+    layout->addWidget(pFGGroupBox);
     layout->addWidget(pb_export_features);
     layout->addWidget(pb_export_sizechart);
 
@@ -288,6 +331,7 @@ QWidget *LP_HumanFeature::DockUi()
         mMember->importFeatures(filename);
         mMember->updateFPsList();
         mMember->updateFCsList();
+        mMember->updateFGsList();
         emit glUpdateRequest();
     });
 
@@ -296,6 +340,9 @@ QWidget *LP_HumanFeature::DockUi()
     });
     connect(mCB_FeatureType, &QComboBox::currentIndexChanged, [pFCGroupBox](const int &id){
         pFCGroupBox->setHidden( 1 != id );
+    });
+    connect(mCB_FeatureType, &QComboBox::currentIndexChanged, [pFGGroupBox](const int &id){
+        pFGGroupBox->setHidden( 2 != id );
     });
 
     connect(mCB_FeatureType, &QComboBox::currentIndexChanged, [this](){
@@ -367,6 +414,44 @@ QWidget *LP_HumanFeature::DockUi()
                 return;
             }
             auto pF = static_cast<FeatureCurve*>(item->data().value<void*>());
+            pF->mName = item->text().toStdString();
+            emit glUpdateRequest();
+        });
+    };
+
+    //For feature girths update
+    mMember->updateFGsList = [this,Treeview_girth](){
+        auto model = new QStandardItemModel();
+        model->setHorizontalHeaderLabels({"Name","Edges","Scales"});
+
+        for ( auto &fg : mMember->featureGirths ){
+
+            auto iName = new QStandardItem(fg.mName.c_str());
+            iName->setData(QVariant::fromValue<void*>(&fg)); //Store pointer to FeaturePoint for eitiing from  the treeview
+            auto Edges = new QStandardItem(QString("%1,%2")
+                                            .arg(std::get<0>(fg.mParams.front()))
+                                            .arg(std::get<1>(fg.mParams.front())));
+            Edges->setData(QVariant::fromValue<void*>(&fg));
+            Edges->setEditable(false);
+            auto iscale = new QStandardItem(QString("%1")
+                                            .arg(std::get<2>(fg.mParams.front())));
+
+            iscale->setData(QVariant::fromValue<void*>(&fg));
+            iscale->setEditable(false);
+            model->appendRow({iName,Edges,iscale});
+        }
+        delete Treeview_girth->model();
+        Treeview_girth->reset();
+        Treeview_girth->setModel(model);
+        connect(model, &QStandardItemModel::dataChanged,
+                [model,this](const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles){
+            Q_UNUSED(bottomRight)
+            Q_UNUSED(roles)
+            auto item = model->itemFromIndex(topLeft);
+            if ( 0 != item->column()){
+                return;
+            }
+            auto pF = static_cast<FeaturePoint*>(item->data().value<void*>());
             pF->mName = item->text().toStdString();
             emit glUpdateRequest();
         });
@@ -464,10 +549,14 @@ void LP_HumanFeature::FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QO
         f->glDrawArrays(GL_POINTS, 0, 1);
     }
 
-//    for ( auto &fc : mMember->featureCurves ){
-//        mProgramFeatures->setAttributeArray("a_pos", fc.data());
-//        f->glDrawArrays(GL_LINE_STRIP, 0, fc.size());
-//    }
+    if ( mMember->pickGirth ){  //Draw the temporary pick girth
+        auto girth = mMember->evaluationFeatureGirth(mMember->mesh,
+                                                  *mMember->pickGirth.get());
+        mProgramFeatures->setUniformValue("v4_color", QVector4D(0.8, 0.8, 0.2, 0.6));
+        mProgramFeatures->setAttributeArray("a_pos", girth.data());
+        f->glDrawArrays(GL_LINE_LOOP, 0, girth.size());
+    }
+
 
     if ( "Points" == mCB_FeatureType->currentText()
          || "All" == mCB_FeatureType->currentText()) {//Draw Feature Points
@@ -491,6 +580,21 @@ void LP_HumanFeature::FunctionalRender_L(QOpenGLContext *ctx, QSurface *surf, QO
         }
         f->glLineWidth(1.f);
     }
+
+    if ( "Girths" == mCB_FeatureType->currentText()
+         || "All" == mCB_FeatureType->currentText()) {//Draw Feature Curves
+
+        f->glLineWidth(5.f);
+        mProgramFeatures->setUniformValue("v4_color", QVector4D(1.0, 0.6, 0.4, 0.6));
+        auto &&fgs = mMember->get3DFeatureGirths();
+        for ( auto &fg : fgs ){
+            mProgramFeatures->setAttributeArray("a_pos", fg.data());
+            f->glDrawArrays(GL_LINE_LOOP, 0, fg.size());
+        }
+        f->glLineWidth(1.f);
+    }
+
+
 
     mProgramFeatures->disableAttributeArray("a_pos");
     mProgramFeatures->release();
@@ -736,7 +840,6 @@ bool LP_HumanFeature::member::convert2ON_Mesh(LP_OpenMesh opMesh)
     rtcCommitGeometry( rtGeometry );
     rtGeomID = rtcAttachGeometry( rtScene, rtGeometry );
     rtcReleaseGeometry( rtGeometry );
-
     rtcCommitScene( rtScene );
     return true;
 }
@@ -781,6 +884,74 @@ bool LP_HumanFeature::member::pickFeaturePoint(QPoint &&pickPos)
                           pF->vi[1],    //u
                           pF->vi[2],    //v
                           rayhit.hit.u, rayhit.hit.v};
+    return  true;
+}
+
+bool LP_HumanFeature::member::pickFeatureGirth()
+{
+//    std::vector<QVector3D> fpts = get3DFeaturePoints();
+    QVector3D pos = evaluationFeaturePoint(mesh, *pickPoint);
+
+    typedef MeshPlaneIntersect<float, int> Intersector;
+    std::vector<Intersector::Vec3D> vertices;
+    for(int n =0; n<mesh.VertexCount(); n++)
+    {
+        auto v = mesh.Vertex(n);
+        vertices.push_back({float(v.x), float(v.y), float(v.z)});
+        }
+
+    std::vector<Intersector::Face> faces;
+    for(int n =0; n<mesh.FaceCount(); n++)
+    {
+        auto fv = mesh.m_F.At(n)->vi;
+        faces.push_back({fv[0], fv[1], fv[2]});
+        }
+
+    Intersector::Mesh Imesh(vertices, faces);
+    Intersector::Plane plane;
+
+    plane.origin = {pos.x(), pos.y(), pos.z()};
+    plane.normal = {0, 1, 0};
+
+    auto result = Imesh.Intersect(plane);
+
+
+    // pick one girth with maximum size
+    unsigned long max = 0;
+    int max_idx = 0;
+    for(unsigned long n =0; n<result.size(); ++n)
+    {
+        if(max < result[n].points.size()){
+            max_idx = n;
+            max = result[n].points.size();
+        }
+    }
+
+    std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> edgepaths = Intersector::Mesh::o_edgePaths;
+    MeshPlaneIntersect<float,int>::Mesh::EdgePath ep = edgepaths[max_idx];
+//    std::cout<<"ep size:"<<ep.size()<<std::endl;
+    std::vector<float> scales = result[max_idx].factors;
+
+    pickGirth = std::make_shared<FeatureGirth>();
+    pickGirth->mName = "G_x";
+
+//    std::cout<<"scale size:"<<scales.size()<<std::endl;
+//    std::cout<<"point size:"<< result[max_idx].points.size() <<std::endl;
+    for (unsigned long m=0; m<result[max_idx].points.size(); ++m)
+    {
+//        auto p = result[max_idx].points[m];
+//        QVector3D pt;
+//        pt.setX(p[0]);
+//        pt.setY(p[1]);
+//        pt.setZ(p[2]);
+//        pts.emplace_back(pt);
+
+        auto e = ep[m+1]; // important!
+        std::tuple params = std::make_tuple(e.first, e.second, scales[m]);
+        pickGirth->mParams.emplace_back(params);
+
+    }
+//    std::cout<<"params"<<std::get<0>(pickGirth->mParams.front())<<std::endl;
     return  true;
 }
 
@@ -1038,7 +1209,6 @@ bool LP_HumanFeature::member::projFeatureCurve(const std::vector<QPoint> &projli
     return true;
 }
 
-
 QVector3D LP_HumanFeature::member::evaluationFeaturePoint(const ON_Mesh &m, const FeaturePoint &fp)
 {
     const auto &nVs = m.VertexCount();
@@ -1059,6 +1229,29 @@ QVector3D LP_HumanFeature::member::evaluationFeaturePoint(const ON_Mesh &m, cons
     }
     auto _p = u * mesh.m_V[j] + v * mesh.m_V[k] + w * mesh.m_V[i];
     return QVector3D(_p.x, _p.y, _p.z);
+}
+
+std::vector<QVector3D> LP_HumanFeature::member::evaluationFeatureGirth(const ON_Mesh &m, const FeatureGirth &fg)
+{
+    const auto &nVs = m.VertexCount();
+//    if ( 0 >= nVs ){
+//        qDebug() << "Invalid Reference Mesh!";
+//        return std::vector<QVector3D>();
+//    }
+    auto &params = fg.mParams;
+    std::vector<QVector3D> pts_vec;
+    for (unsigned long n = 0; n < fg.mParams.size(); n++){
+        const int &i = std::get<0>(params[n]),
+                  &j = std::get<1>(params[n]);
+        const double &t = std::get<2>(params[n]);
+        if ( i >= nVs || j >= nVs  ){
+            qDebug() << "Invalid Feature Point!";
+            return std::vector<QVector3D>();
+        }
+        auto _p = mesh.m_V[i] + t * (mesh.m_V[j] - mesh.m_V[i]);
+        pts_vec.emplace_back(QVector3D(_p.x, _p.y, _p.z));
+    }
+    return pts_vec;
 }
 
 void LP_HumanFeature::member::initializeEmbree3()
@@ -1122,6 +1315,30 @@ void LP_HumanFeature::member::importFeatures(const QString &filename)
         }
         featureCurves.emplace_back(std::move(fc));
     }
+    // for feature girths
+    auto jFGs = jDoc["FeatureGirths"].toArray();
+    for ( auto &&jFg : jFGs ) {
+        FeatureGirth fg;
+        auto  &&jObj = jFg.toObject();
+        Q_ASSERT( 1 == jObj.size());
+        auto jObjIt = jObj.begin();
+        fg.mName =  jObjIt.key().toStdString();
+        auto &&jFPs = jObjIt.value().toArray();
+        for ( auto &&jFp : jFPs){
+            auto info = jFp.toString().split(",");
+            if ( 4 != info.size()){
+                qWarning() << "Corrupt Feature Girth : " <<info;
+                continue;
+            }
+            fg.mName = info.at(0).toStdString();
+            fg.mParams.emplace_back(std::make_tuple<int,int, float>(info.at(1).toInt(),
+                         info.at(2).toInt(),
+                         info.at(3).toFloat()
+                         ));
+        }
+        featureGirths.emplace_back(std::move(fg));
+    }
+
 }
 
 void LP_HumanFeature::member::exportFeatures(const QString &filename)
@@ -1129,7 +1346,7 @@ void LP_HumanFeature::member::exportFeatures(const QString &filename)
     if ( filename.isEmpty()){
         return;
     }
-    //Prepare the daata
+    //Prepare the data
     QJsonObject jObj;
     QJsonArray jFpts;
     for ( auto &p : featurePoints ){
@@ -1143,7 +1360,7 @@ void LP_HumanFeature::member::exportFeatures(const QString &filename)
     }
 
     jObj["FeaturePoints"] = jFpts;
-    //Prepare the daata
+    //Prepare the data
     QJsonObject jObj_cs;
     QJsonArray jCurvs;
     for ( auto &c : featureCurves ){
@@ -1163,6 +1380,27 @@ void LP_HumanFeature::member::exportFeatures(const QString &filename)
     }
 
     jObj["FeatureCurves"] = jCurvs;
+
+    //Prepare the data
+    QJsonObject jObj_gs;
+    QJsonArray jGirths;
+    for ( auto &g : featureGirths ){
+        QJsonObject jObj_g;
+        QJsonArray jFpts;
+        for (unsigned long n = 0; n < g.mParams.size(); n++){
+            jFpts.append(QString("%4,%1,%2,%3")
+                         .arg(std::get<0>(g.mParams[n]))
+                         .arg(std::get<1>(g.mParams[n]))
+                         .arg(std::get<2>(g.mParams[n]))
+                         .arg(g.mName.data()));
+        }
+
+        jObj_g[g.mName.c_str()] = jFpts;
+        jGirths.append(jObj_g);
+    }
+
+    jObj["FeatureGirths"] = jGirths;
+
     QJsonDocument jDoc(jObj);
 
     QFile file(filename);
@@ -1202,13 +1440,58 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
     QRegularExpression tag("(T\\d\\d\\d,)");
     QStringList list;
     QTextStream in(&data);
+    QTextStream out(&file);
     while (!in.atEnd()){
-        auto &&line = in.readLine();
-        auto m = tag.match(line);
+        auto &&inLine = in.readLine();
+        auto m = tag.match(inLine);
+        QString outLine;
         if ( m.hasMatch()){
             list << m.captured();
-            qDebug() << line.split(",");
+            auto data_ = inLine.split(",");
+            if ( data_[0] == "T001"){
+               data_[3] = QString("%1").arg(measurement_T001());
+            }
+            else if ( data_[0] == "T002"){
+               data_[3] = QString("%1").arg(measurement_T002());
+            }
+            else if ( data_[0] == "T003"){
+               data_[3] = QString("%1").arg(measurement_T003());
+            }
+            else if ( data_[0] == "T026"){
+               data_[3] = QString("%1").arg(measurement_T026());
+            }
+            else if ( data_[0] == "T022"){
+               data_[3] = QString("%1").arg(measurement_T022());
+            }
+            else if ( data_[0] == "T063"){
+               data_[3] = QString("%1").arg(measurement_T063());
+            }
+            else if ( data_[0] == "T011"){
+               data_[3] = QString("%1").arg(measurement_T011());
+            }
+            else if ( data_[0] == "T028"){
+               data_[3] = QString("%1").arg(measurement_T028());
+            }
+            else if ( data_[0] == "T016"){
+               data_[3] = QString("%1").arg(measurement_T016());
+            }
+            else if ( data_[0] == "T006"){
+               data_[3] = QString("%1").arg(measurement_T006());
+            }
+            else if ( data_[0] == "T023"){
+               data_[3] = QString("%1").arg(measurement_T023());
+            }
+            else if ( data_[0] == "T014"){
+               data_[3] = QString("%1").arg(measurement_T014());
+            }
+            //USER
+            for (int i = 0; i<data_.size(); i++){
+                outLine += data_[i]+",";
+            }
+            outLine += "\n";
+            out << outLine;
         }
+        else {out << inLine + "\n";}
     }
 //    auto i = tag.globalMatch(data);
 
@@ -1221,31 +1504,132 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
     file.close();
 }
 
-double LP_HumanFeature::member::measurement_T063()
+double LP_HumanFeature::member::pointName2Measurements(QStringList composite, std::string type)
 {
-    QStringList composite = {"Shoulder_R","Elbow_R","Wist_R"};
     std::vector<QVector3D> measure_points;
     int next = 0;
 
     for ( auto &st : composite ) {
-        for ( auto &p : featurePoints ){
-            if ( p.mName.compare(st.toStdString())){
-                ++next;
-                measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
-                break;
+        if (type == "points") {
+            for ( auto &p : featurePoints ){
+                if ( 0 == p.mName.compare(st.toStdString())){
+                    ++next;
+                    measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
+                    break;
+                }
             }
         }
+        else if (type == "curves"){
+            for ( auto &c : featureCurves ){
+                if ( 0 == c.mName.compare(st.toStdString())){
+                    ++next;
+                    for (unsigned long i = 0; i< c.mCurve.size(); i++)
+                        measure_points.emplace_back(evaluationFeaturePoint(mesh, c.mCurve[i]));
+                    break;
+                }
+            }
+        }
+        else if (type == "girths"){
+            for ( auto &g : featureGirths ){
+                if ( 0 == g.mName.compare(st.toStdString())){
+                    ++next;
+                    measure_points = evaluationFeatureGirth(mesh, g);
+                    break;
+                }
+            }
+         }
+         break;
     }
-    if ( next != composite.size()){
 
+//    if ( next != composite.size()){
+//        return 0.0;
+//    }
+    if ( measure_points.empty()) {
         return 0.0;
     }
     double measurement = 0.0;
-    for ( int i = 1; i < next; ++i ){
-        measurement += (measure_points[i] - measure_points[i]).length();
+    for ( int i = 0; i < int(measure_points.size()-1); ++i ){
+//    for ( int i = 1; i < measure_points.size(); ++i ){
+//        measurement += (measure_points[i] - measure_points[i-1]).length();
+        measurement += measure_points[i].distanceToPoint(measure_points[i+1]);
     }
+    qDebug() << "measurements:" << measurement;
     return measurement;
 }
+
+
+double LP_HumanFeature::member::measurement_T063()
+{
+    QStringList composite = {"Shoulder_R","Elbow_R_U","Wist_R_U"};
+    return pointName2Measurements(composite, "points");
+}
+
+double LP_HumanFeature::member::measurement_T001()
+{
+    QStringList composite = {"T028"};
+    return (measurement_T028()+20);
+}
+
+double LP_HumanFeature::member::measurement_T002()
+{
+    QStringList composite = {"Bust_Girth"};
+    return pointName2Measurements(composite, "girths")/2;
+}
+
+double LP_HumanFeature::member::measurement_T003()
+{
+    QStringList composite = {"Shoulder_L","Neck_B","Shoulder_R"};
+    return pointName2Measurements(composite, "points");
+}
+
+double LP_HumanFeature::member::measurement_T026()
+{
+    QStringList composite = {"Chest_U"};
+    return pointName2Measurements(composite, "curves");
+}
+
+double LP_HumanFeature::member::measurement_T011()
+{
+    QStringList composite = {"Armhole"};
+    return pointName2Measurements(composite, "curves");
+}
+
+double LP_HumanFeature::member::measurement_T028()
+{
+    QStringList composite = {"Shoulder_R", "Bust_R", "Helper_01"};
+    return pointName2Measurements(composite, "points");
+}
+
+double LP_HumanFeature::member::measurement_T022()
+{
+    QStringList composite = {"Waist_Girth"};
+    return pointName2Measurements(composite, "girths")/2;
+}
+
+double LP_HumanFeature::member::measurement_T016()
+{
+    QStringList composite = {"Arm_Width"};
+    return pointName2Measurements(composite, "curves");
+}
+
+double LP_HumanFeature::member::measurement_T006()
+{
+    QStringList composite = {"Chest_U_B"};
+    return pointName2Measurements(composite, "curves");
+}
+
+double LP_HumanFeature::member::measurement_T023()
+{
+    QStringList composite = {"T023"};
+    return pointName2Measurements(composite, "curves");
+}
+
+double LP_HumanFeature::member::measurement_T014()
+{
+    QStringList composite = {"Neck_B", "Neck_R", "Wist_R_U"};
+    return pointName2Measurements(composite, "points");
+}
+
 
 std::vector<QVector3D> LP_HumanFeature::member::get3DFeaturePoints()
 {
@@ -1270,14 +1654,63 @@ std::vector<std::vector<QVector3D> > LP_HumanFeature::member::get3DFeatureCurves
     }
     std::vector<std::vector<QVector3D>> curves;
     for ( auto &fc : featureCurves ){
+
         std::vector<QVector3D> pts;
         for ( auto &fp : fc.mCurve ){
-            pts.emplace_back(
-                        evaluationFeaturePoint(mesh, fp)
-                    );
+            pts.emplace_back(evaluationFeaturePoint(mesh, fp));
         }
         curves.emplace_back( pts );
     }
     return curves;
 }
 
+std::vector<std::vector<QVector3D>> LP_HumanFeature::member::get3DFeatureGirths()
+{
+    const auto &nVs = mesh.VertexCount();
+    if ( 0 >= nVs ){
+        return std::vector<std::vector<QVector3D>>();
+    }
+    std::vector<std::vector<QVector3D>> girths;
+    for ( auto &fg : featureGirths ){
+        girths.emplace_back( evaluationFeatureGirth(mesh, fg) );
+    }
+    return girths;
+}
+
+double LP_HumanFeature::member::getCurveLength(const FeatureCurve &curve)
+{
+    double distance = 0;
+    if(curve.mCurve.size()<=0) return 0;
+    std::vector<QVector3D> pts;
+    for ( int i =0;i<int(curve.mCurve.size())-1;i++)
+    {
+        distance+=getP2PLength(curve.mCurve[i],curve.mCurve[i+1]);
+    }
+    qDebug()<<QString::fromStdString(curve.mName)<<"Distance ="<<distance;
+    return distance;
+}
+
+double LP_HumanFeature::member::getP2CLength(const FeaturePoint &point, const FeatureCurve &curve)
+{
+    double distance=9999;
+    std::string idx;
+    for(auto &pt : curve.mCurve)
+    {
+        if(getP2PLength(pt,point)<distance)
+        {
+            distance = getP2PLength(pt,point);
+            idx = pt.mName;
+        }
+    }
+    return distance;
+}
+
+double LP_HumanFeature::member::getP2PLength(const FeaturePoint &pointA, const FeaturePoint &pointB)
+{
+    double distance=0;
+    QVector3D ptA,ptB;
+    ptA = evaluationFeaturePoint(mesh, pointA);
+    ptB = evaluationFeaturePoint(mesh, pointB);
+    distance = ptA.distanceToPoint(ptB);
+    return distance;
+}

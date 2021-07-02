@@ -1,9 +1,12 @@
 #include "lp_pca_human.h"
 
+#ifdef Q_OS_WIN
 #undef WIN32
-#define OPENNURBS_PUBLIC_INSTALL_DIR "H:/Projects/CPII/SmartFashion/LP_Plugin_HumanFeatures/extern/opennurbs/install"
-#include "opennurbs_public.h"
+#include "opennurbs.h"
 #define WIN32
+#elif defined Q_OS_LINUX
+#include "opennurbs_public.h"
+#endif
 
 #include "Eigen/Core"
 #include "eiquadprog/eiquadprog-fast.hpp"

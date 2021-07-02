@@ -62,7 +62,7 @@ DEPENDPATH += $$PWD/extern/eiquadprog-1.2.3/include
 INCLUDEPATH += $$PWD/extern/opennurbs
 DEPENDPATH += $$PWD/extern/opennurbs
 
-#win32: LIBS += -L$$PWD/extern/opennurbs/install/bin/x64/Release -lopennurbs_public
+win32: LIBS += -L$$PWD/extern/opennurbs/install/lib -lopennurbs_public
 
 win32: LIBS += -L$$PWD/extern/embree3/lib/ -lembree3
 else:unix:!macx|win32: LIBS += -L$$PWD/extern/embree3/lib/ -lembree3

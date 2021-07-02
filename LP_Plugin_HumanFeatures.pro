@@ -1,7 +1,7 @@
 QT += gui widgets
 
 TEMPLATE = lib
-DEFINES += LP_PLUGIN_HUMANFEATURE_LIBRARY _USE_MATH_DEFINES ON_COMPILER_MSC OPENNURBS_IMPORTS NOMINMAX
+DEFINES += LP_PLUGIN_HUMANFEATURE_LIBRARY _USE_MATH_DEFINES
 DEFINES += EIGEN_HAS_CONSTEXPR EIGEN_MAX_CPP_VER=17
 
 CONFIG += c++17
@@ -70,7 +70,9 @@ else:unix:!macx|win32: LIBS += -L$$PWD/extern/embree3/lib/ -lembree3
 INCLUDEPATH += $$PWD/extern/embree3/include
 DEPENDPATH += $$PWD/extern/embree3/include
 
-unix: {
+win32:{
+    DEFINES +=  OPENNURBS_IMPORTS NOMINMAX
+}unix: {
     SOURCES += \
         extern/opennurbs/opennurbs_3dm_attributes.cpp \
         extern/opennurbs/opennurbs_3dm_properties.cpp \

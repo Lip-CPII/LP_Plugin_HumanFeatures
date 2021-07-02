@@ -39,6 +39,8 @@
 #include <QMessageBox>
 #include <QtConcurrent/QtConcurrent>
 
+#include <iostream>
+
 template<> std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> MeshPlaneIntersect<float,int>::Mesh::o_edgePaths = std::vector<EdgePath>();
 
 
@@ -169,7 +171,6 @@ bool LP_HumanFeature::eventFilter(QObject *watched, QEvent *event)
                 if ("Girths" == mCB_FeatureType->currentText()){
                     mMember->pickFeatureGirth();
                 }
-//                std::cout<<"girth test"<<std::endl;
                 emit glUpdateRequest();
                 return true;
             }
@@ -922,14 +923,11 @@ bool LP_HumanFeature::member::pickFeatureGirth()
 
     std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> edgepaths = Intersector::Mesh::o_edgePaths;
     MeshPlaneIntersect<float,int>::Mesh::EdgePath ep = edgepaths[max_idx];
-//    std::cout<<"ep size:"<<ep.size()<<std::endl;
     std::vector<float> scales = result[max_idx].factors;
 
     pickGirth = std::make_shared<FeatureGirth>();
     pickGirth->mName = "G_x";
 
-//    std::cout<<"scale size:"<<scales.size()<<std::endl;
-//    std::cout<<"point size:"<< result[max_idx].points.size() <<std::endl;
     for (unsigned long m=0; m<result[max_idx].points.size(); ++m)
     {
 //        auto p = result[max_idx].points[m];
@@ -944,7 +942,6 @@ bool LP_HumanFeature::member::pickFeatureGirth()
         pickGirth->mParams.emplace_back(params);
 
     }
-//    std::cout<<"params"<<std::get<0>(pickGirth->mParams.front())<<std::endl;
     return  true;
 }
 
@@ -1506,6 +1503,7 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
         if (type == "points") {
             for ( auto &p : featurePoints ){
                 if ( 0 == p.mName.compare(st.toStdString())){
+                    QVector3D pos = evaluationFeaturePoint(mesh, p);
                     ++next;
                     measure_points.emplace_back(evaluationFeaturePoint(mesh, p));
                     break;
@@ -1531,12 +1529,8 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
                 }
             }
          }
-         break;
     }
 
-//    if ( next != composite.size()){
-//        return 0.0;
-//    }
     if ( measure_points.empty()) {
         return 0.0;
     }

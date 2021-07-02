@@ -63,16 +63,16 @@ INCLUDEPATH += $$PWD/extern/opennurbs
 DEPENDPATH += $$PWD/extern/opennurbs
 
 win32: LIBS += -L$$PWD/extern/opennurbs/install/lib -lopennurbs_public
-
 win32: LIBS += -L$$PWD/extern/embree3/lib/ -lembree3
-else:unix:!macx|win32: LIBS += -L$$PWD/extern/embree3/lib/ -lembree3
 
 INCLUDEPATH += $$PWD/extern/embree3/include
 DEPENDPATH += $$PWD/extern/embree3/include
 
-win32:{
-    DEFINES +=  OPENNURBS_IMPORTS NOMINMAX
-}unix: {
+win32: {
+    DEFINES += OPENNURBS_IMPORTS NOMINMAX
+}
+else:unix!macx: {
+    DEFINES += ON_COMPILING_OPENNURBS
     SOURCES += \
         extern/opennurbs/opennurbs_3dm_attributes.cpp \
         extern/opennurbs/opennurbs_3dm_properties.cpp \

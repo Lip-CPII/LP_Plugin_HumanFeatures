@@ -1,5 +1,13 @@
 #include "lp_humanfeature.h"
 
+#ifdef Q_OS_WIN
+#undef WIN32
+#include "opennurbs.h"
+#define WIN32
+#elif defined Q_OS_LINUX
+#include "opennurbs.h"
+#endif
+
 #include "xmmintrin.h"
 #include "pmmintrin.h"
 
@@ -9,8 +17,6 @@
 #include "embree3/rtcore.h"
 #include "embree3/rtcore_common.h"
 #include "embree3/rtcore_ray.h"
-
-#include "extern/opennurbs/opennurbs.h"
 
 #include "lp_openmesh.h"
 #include "lp_renderercam.h"
@@ -40,6 +46,7 @@
 #include <QtConcurrent/QtConcurrent>
 
 #include <iostream>
+
 
 template<> std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> MeshPlaneIntersect<float,int>::Mesh::o_edgePaths = std::vector<EdgePath>();
 
@@ -798,6 +805,7 @@ bool LP_HumanFeature::member::convert2ON_Mesh(LP_OpenMesh opMesh)
 {
     auto m = opMesh->Mesh();
     const auto &&nVs = m->n_vertices();
+
     auto pptr = m->points();
     //auto nptr = m->vertex_normals();
     auto vertices = (float*)rtcSetNewGeometryBuffer(rtGeometry, RTC_BUFFER_TYPE_VERTEX,0,RTC_FORMAT_FLOAT3,sizeof(ON_3fPoint), nVs);
@@ -1519,8 +1527,7 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
                     break;
                 }
             }
-        }
-        else if (type == "girths"){
+        } else if (type == "girths"){
             for ( auto &g : featureGirths ){
                 if ( 0 == g.mName.compare(st.toStdString())){
                     ++next;

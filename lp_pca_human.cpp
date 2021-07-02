@@ -1,11 +1,16 @@
 #include "lp_pca_human.h"
 
+#ifdef Q_OS_WIN
+#undef WIN32
+#include "opennurbs.h"
+#define WIN32
+#elif defined Q_OS_LINUX
+#include "opennurbs.h"
+#endif
 
 #include "Eigen/Core"
 #include "eiquadprog/eiquadprog-fast.hpp"
 #include "eiquadprog/eiquadprog.hpp"
-
-#include "extern/opennurbs/opennurbs.h"
 
 #include "lp_openmesh.h"
 #include "lp_renderercam.h"
@@ -26,6 +31,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QtConcurrent/QtConcurrent>
+
 
 struct LP_PCA_Human::member {
     std::vector<double> defaultParametersM = {90.6,86.7,81.2,95.2,38.5,77.1,37.7,174.0};

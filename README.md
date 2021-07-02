@@ -6,7 +6,7 @@ The plugin includes [OpenNURBS](https://www.rhino3d.com/opennurbs/) for mesh pro
 ## Usage
 You may download the [binary](https://github.com/Lip-CPII/LP_Plugin_HumanFeatures/releases) then unzip and put it into the "_App/plugins_" directory or Build it yourself. 
 
-** p.s. The binary is built from Ubuntu 20.04 64-bit. For Windows, you have to build it yourself by following instructions.
+** p.s. The binary is built from Ubuntu 20.04 64-bit ([v0.0.2](https://github.com/Lip-CPII/LP_Plugin_HumanFeatures/releases)). For Windows, you have to build it yourself by following instructions or download the prebuilt ([v0.0.3](https://github.com/Lip-CPII/LP_Plugin_HumanFeatures/releases)) and unzip them into the "_App/plugins_" directory or Build it yourself.
 
 
 ### Build

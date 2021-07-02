@@ -11,6 +11,7 @@
 #include "xmmintrin.h"
 #include "pmmintrin.h"
 
+
 #include "MeshPlaneIntersect.hpp"
 
 #include "embree3/rtcore.h"
@@ -43,7 +44,6 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QtConcurrent/QtConcurrent>
-
 
 template<> std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> MeshPlaneIntersect<float,int>::Mesh::o_edgePaths = std::vector<EdgePath>();
 
@@ -1528,8 +1528,7 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
                     break;
                 }
             }
-        }
-        else if (type == "girths"){
+        } else if (type == "girths"){
             for ( auto &g : featureGirths ){
                 if ( 0 == g.mName.compare(st.toStdString())){
                     ++next;

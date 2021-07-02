@@ -71,7 +71,7 @@ DEPENDPATH += $$PWD/extern/embree3/include
 win32: {
     DEFINES += OPENNURBS_IMPORTS NOMINMAX
 }
-else:unix!macx: {
+else:unix:!macx: {
     DEFINES += ON_COMPILING_OPENNURBS
     SOURCES += \
         extern/opennurbs/opennurbs_3dm_attributes.cpp \

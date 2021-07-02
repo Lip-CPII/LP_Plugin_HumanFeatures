@@ -5,7 +5,7 @@
 #include "opennurbs.h"
 #define WIN32
 #elif defined Q_OS_LINUX
-#include "opennurbs_public.h"
+#include "opennurbs.h"
 #endif
 
 #include "Eigen/Core"
@@ -31,7 +31,6 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QtConcurrent/QtConcurrent>
-
 
 
 struct LP_PCA_Human::member {

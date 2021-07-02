@@ -5,7 +5,7 @@
 #include "opennurbs.h"
 #define WIN32
 #elif defined Q_OS_LINUX
-#include "opennurbs_public.h"
+#include "opennurbs.h"
 #endif
 
 #include "xmmintrin.h"
@@ -44,6 +44,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QtConcurrent/QtConcurrent>
+
+
 
 template<> std::vector<MeshPlaneIntersect<float,int>::Mesh::EdgePath> MeshPlaneIntersect<float,int>::Mesh::o_edgePaths = std::vector<EdgePath>();
 

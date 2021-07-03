@@ -1553,7 +1553,9 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
 //        measurement += (measure_points[i] - measure_points[i-1]).length();
         measurement += measure_points[i].distanceToPoint(measure_points[i+1]);
     }
+//#ifndef QT_NO_DEBUG
     qDebug() << "measurements:" << measurement;
+//#endif
     return measurement;
 }
 
@@ -1561,72 +1563,84 @@ double LP_HumanFeature::member::pointName2Measurements(QStringList composite, st
 double LP_HumanFeature::member::measurement_T063()
 {
     QStringList composite = {"Shoulder_R","Elbow_R_U","Wist_R_U"};
+    qDebug() << "T063";
     return pointName2Measurements(composite, "points");
 }
 
 double LP_HumanFeature::member::measurement_T001()
 {
     QStringList composite = {"T028"};
+    qDebug() << "T001";
     return (measurement_T028()+20);
 }
 
 double LP_HumanFeature::member::measurement_T002()
 {
     QStringList composite = {"Bust_Girth"};
-    return pointName2Measurements(composite, "girths")/2;
+    qDebug() << "T002";
+    return 0.5*pointName2Measurements(composite, "girths");
 }
 
 double LP_HumanFeature::member::measurement_T003()
 {
     QStringList composite = {"Shoulder_L","Neck_B","Shoulder_R"};
+    qDebug() << "T003";
     return pointName2Measurements(composite, "points");
 }
 
 double LP_HumanFeature::member::measurement_T026()
 {
     QStringList composite = {"Chest_U"};
+    qDebug() << "T026";
     return pointName2Measurements(composite, "curves");
 }
 
 double LP_HumanFeature::member::measurement_T011()
 {
     QStringList composite = {"Armhole"};
+    qDebug() << "T011";
     return pointName2Measurements(composite, "curves");
 }
 
 double LP_HumanFeature::member::measurement_T028()
 {
     QStringList composite = {"Shoulder_R", "Bust_R", "Helper_01"};
+    qDebug() << "T028";
     return pointName2Measurements(composite, "points");
 }
 
 double LP_HumanFeature::member::measurement_T022()
 {
     QStringList composite = {"Waist_Girth"};
+    qDebug() << "T022";
     return pointName2Measurements(composite, "girths")/2;
 }
 
 double LP_HumanFeature::member::measurement_T016()
 {
     QStringList composite = {"Arm_Width"};
+    qDebug() << "T016";
     return pointName2Measurements(composite, "curves");
 }
 
 double LP_HumanFeature::member::measurement_T006()
 {
     QStringList composite = {"Chest_U_B"};
+    qDebug() << "T006";
     return pointName2Measurements(composite, "curves");
 }
 
 double LP_HumanFeature::member::measurement_T023()
 {
     QStringList composite = {"T023"};
+    qDebug() << "T023";
     return pointName2Measurements(composite, "curves");
 }
 
 double LP_HumanFeature::member::measurement_T014()
 {
     QStringList composite = {"Neck_B", "Neck_R", "Wist_R_U"};
+    qDebug() << "T014";
     return pointName2Measurements(composite, "points");
 }
 

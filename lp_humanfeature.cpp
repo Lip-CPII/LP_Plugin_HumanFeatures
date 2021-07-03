@@ -804,6 +804,7 @@ RTCRayHit LP_HumanFeature::member::rayCast(const QVector3D &rayOrg, const QVecto
 bool LP_HumanFeature::member::convert2ON_Mesh(LP_OpenMesh opMesh)
 {
     auto m = opMesh->Mesh();
+    auto trans = opMesh->ModelTrans();
     const auto &&nVs = m->n_vertices();
 
     auto pptr = m->points();
@@ -814,10 +815,12 @@ bool LP_HumanFeature::member::convert2ON_Mesh(LP_OpenMesh opMesh)
     mesh.m_V.Reserve(nVs);
     mesh.m_V.SetCount(nVs);
     for (int i=0; i<int(nVs); ++i, ++pptr, ++vertices/*, ++nptr*/ ){
-        mesh.m_V.At(i)->Set((*pptr)[0],(*pptr)[1],(*pptr)[2]);
-        *vertices = (*pptr)[0];
-        *++vertices = (*pptr)[1];
-        *++vertices = (*pptr)[2];
+        auto p = QVector3D((*pptr)[0],(*pptr)[1],(*pptr)[2]);
+        p = trans * p;
+        mesh.m_V.At(i)->Set(p.x(),p.y(),p.z());
+        *vertices = p.x();
+        *++vertices = p.y();
+        *++vertices = p.z();
     }
 
     auto const nFs = m->n_faces();
@@ -1564,7 +1567,7 @@ double LP_HumanFeature::member::measurement_T001()
 {
     QStringList composite = {"T028"};
     qDebug() << "T001";
-    return (measurement_T028()+20);
+    return (measurement_T028()+20.0);
 }
 
 double LP_HumanFeature::member::measurement_T002()

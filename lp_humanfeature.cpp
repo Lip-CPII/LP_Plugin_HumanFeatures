@@ -1462,37 +1462,37 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
             if ( data_[0] == "T001"){
                data_[3] = QByteArray::number(measurement_T001(),'f',1);
             }
-            else if ( data_[0] == "T002"){
+            else if ( data_[0] == "T002") {
                data_[3] = QByteArray::number(measurement_T002(),'f',1);
             }
-            else if ( data_[0] == "T003"){
+            else if ( data_[0] == "T003") {
                data_[3] = QByteArray::number(measurement_T003(),'f',1);
             }
-            else if ( data_[0] == "T026"){
+            else if ( data_[0] == "T026") {
                data_[3] = QByteArray::number(measurement_T026(),'f',1);
             }
-            else if ( data_[0] == "T022"){
+            else if ( data_[0] == "T022") {
                data_[3] = QByteArray::number(measurement_T022(),'f',1);
             }
-            else if ( data_[0] == "T063"){
+            else if ( data_[0] == "T063") {
                data_[3] = QByteArray::number(measurement_T063(),'f',1);
             }
-            else if ( data_[0] == "T011"){
+            else if ( data_[0] == "T011") {
                data_[3] = QByteArray::number(measurement_T011(),'f',1);
             }
-            else if ( data_[0] == "T028"){
+            else if ( data_[0] == "T028") {
                data_[3] = QByteArray::number(measurement_T028(),'f',1);
             }
-            else if ( data_[0] == "T016"){
+            else if ( data_[0] == "T016") {
                data_[3] = QByteArray::number(measurement_T016(),'f',1);
             }
-            else if ( data_[0] == "T006"){
+            else if ( data_[0] == "T006") {
                data_[3] = QByteArray::number(measurement_T006(),'f',1);
             }
-            else if ( data_[0] == "T023"){
+            else if ( data_[0] == "T023") {
                data_[3] = QByteArray::number(measurement_T023(),'f',1);
             }
-            else if ( data_[0] == "T014"){
+            else if ( data_[0] == "T014") {
                data_[3] = QByteArray::number(measurement_T014(),'f',1);
             }
             //USER
@@ -1507,13 +1507,6 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
         }
         out << outLine;
     }
-//    auto i = tag.globalMatch(data);
-
-//    while (i.hasNext()){
-//        auto match = i.next();
-//        list << data.mid(match.capturedStart(), 20);
-//        qDebug() << data.mid(match.capturedStart(), 20);
-//    }
 
     buf.close();
     file.close();

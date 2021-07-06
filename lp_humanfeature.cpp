@@ -1425,73 +1425,87 @@ double LP_HumanFeature::member::getShimaMeasurement(const QString &shimaFt)
 
 void LP_HumanFeature::member::exportSizeChart(const QString &filename)
 {
-    QFile defaultCSV("SizeChart.csv");
-    if ( !defaultCSV.open(QIODevice::ReadOnly)){
+    //QFile defaultCSV("SizeChart.csv");
+
+    QFile defaultCSV("SizeChart_UTF8.csv");
+    if ( !defaultCSV.open(QIODevice::ReadOnly)) {
         return;
     }
-    QString data = defaultCSV.readAll();
+    QByteArray data = defaultCSV.readAll();
     defaultCSV.close();
 
+    QBuffer buf(&data);
+    if ( !buf.open(QIODevice::ReadOnly)) {
+         qWarning() << "Buffer : " << buf.errorString();
+         return;
+    }
 
     QFile file(filename);
     if ( !file.open(QIODevice::WriteOnly)){
+        buf.close();
+        qWarning() << "Export CSV : " << file.errorString();
         return;
     }
+
     QRegularExpression tag("(T\\d\\d\\d,)");
     QStringList list;
-    QTextStream in(&data);
     QTextStream out(&file);
-    while (!in.atEnd()){
-        auto &&inLine = in.readLine();
+
+    while (!buf.atEnd()){
+        auto &&inLine = buf.readLine();
+
         auto m = tag.match(inLine);
-        QString outLine;
+        QByteArray outLine;
         if ( m.hasMatch()){
             list << m.captured();
-            auto data_ = inLine.split(",");
+            auto data_ = inLine.split(',');
             if ( data_[0] == "T001"){
-               data_[3] = QString("%1").arg(measurement_T001());
+               data_[3] = QByteArray::number(measurement_T001(),'f',1);
             }
             else if ( data_[0] == "T002"){
-               data_[3] = QString("%1").arg(measurement_T002());
+               data_[3] = QByteArray::number(measurement_T002(),'f',1);
             }
             else if ( data_[0] == "T003"){
-               data_[3] = QString("%1").arg(measurement_T003());
+               data_[3] = QByteArray::number(measurement_T003(),'f',1);
             }
             else if ( data_[0] == "T026"){
-               data_[3] = QString("%1").arg(measurement_T026());
+               data_[3] = QByteArray::number(measurement_T026(),'f',1);
             }
             else if ( data_[0] == "T022"){
-               data_[3] = QString("%1").arg(measurement_T022());
+               data_[3] = QByteArray::number(measurement_T022(),'f',1);
             }
             else if ( data_[0] == "T063"){
-               data_[3] = QString("%1").arg(measurement_T063());
+               data_[3] = QByteArray::number(measurement_T063(),'f',1);
             }
             else if ( data_[0] == "T011"){
-               data_[3] = QString("%1").arg(measurement_T011());
+               data_[3] = QByteArray::number(measurement_T011(),'f',1);
             }
             else if ( data_[0] == "T028"){
-               data_[3] = QString("%1").arg(measurement_T028());
+               data_[3] = QByteArray::number(measurement_T028(),'f',1);
             }
             else if ( data_[0] == "T016"){
-               data_[3] = QString("%1").arg(measurement_T016());
+               data_[3] = QByteArray::number(measurement_T016(),'f',1);
             }
             else if ( data_[0] == "T006"){
-               data_[3] = QString("%1").arg(measurement_T006());
+               data_[3] = QByteArray::number(measurement_T006(),'f',1);
             }
             else if ( data_[0] == "T023"){
-               data_[3] = QString("%1").arg(measurement_T023());
+               data_[3] = QByteArray::number(measurement_T023(),'f',1);
             }
             else if ( data_[0] == "T014"){
-               data_[3] = QString("%1").arg(measurement_T014());
+               data_[3] = QByteArray::number(measurement_T014(),'f',1);
             }
             //USER
-            for (int i = 0; i<data_.size(); i++){
-                outLine += data_[i]+",";
+            const int nData = data_.size() - 1;
+            for (int i = 0; i<nData; i++){
+                outLine += data_[i]+',';
             }
-            outLine += "\n";
-            out << outLine;
+            outLine += data_[nData];
         }
-        else {out << inLine + "\n";}
+        else {
+            outLine = std::move(inLine);
+        }
+        out << outLine;
     }
 //    auto i = tag.globalMatch(data);
 
@@ -1501,6 +1515,7 @@ void LP_HumanFeature::member::exportSizeChart(const QString &filename)
 //        qDebug() << data.mid(match.capturedStart(), 20);
 //    }
 
+    buf.close();
     file.close();
 }
 
